@@ -1,1 +1,5 @@
 .env
+*.log
+*.mp3
+*.m4a
+*.wav
