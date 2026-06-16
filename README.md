@@ -1,177 +1,120 @@
-# MAX Audio Uploader
+# MAX File Uploader
 
-Minimal Windows PowerShell 5.1 utility for uploading one local audio file to MAX Bot API.
+Небольшая утилита для Windows PowerShell 5.1, которая загружает один локальный файл в MAX Bot API.
 
-## English
+Поддерживаются типы:
 
-### What it does
+- `image`
+- `video`
+- `audio`
+- `file`
 
-- Uploads one local audio file to MAX Bot API using `POST /uploads?type=audio`.
-- Designed for local `.mp3`, `.m4a`, and `.wav` files.
-- Prints the upload URL response, upload raw response, media token, and ready-to-use audio attachment JSON.
-- Works on Windows PowerShell 5.1.
+`photo` больше не поддерживается MAX. Используйте `image`.
 
-### Requirements
+## Что делает скрипт
 
-- Windows
-- PowerShell 5.1
-- `curl.exe`
-- MAX bot token
-- Local audio file
+- Запрашивает upload URL через `POST /uploads?type=...`.
+- Загружает один локальный файл как `multipart/form-data` с именем поля `data`.
+- Автоматически определяет тип загрузки по расширению файла.
+- Передаёт подходящий MIME type для известных расширений.
+- Выводит ответ upload URL, сырой ответ загрузки, готовый attachment JSON и пример body для `POST /messages`.
 
-### Setup
-
-1. Download or clone the repository.
-2. Copy `.env.example` to `.env`.
-
-```bat
-copy .env.example .env
-```
-
-3. Open `.env`.
-4. Set `MAX_BOT_TOKEN`.
-5. Set `AUDIO_FILE_PATH`.
-
-Example `.env`:
-
-```env
-MAX_BOT_TOKEN=YOUR_MAX_BOT_TOKEN
-AUDIO_FILE_PATH=C:\temp\voice.mp3
-```
-
-### Usage
-
-Run:
-
-```bat
-run.bat
-```
-
-### Successful upload
-
-The upload response from the CDN may look like this:
-
-```xml
-<retval>1</retval>
-```
-
-This means the file upload succeeded. The script uploads the file as `multipart/form-data` using the field name `data`.
-
-### Result
-
-The script prints a media token and ready audio attachment JSON:
-
-```json
-{
-  "type": "audio",
-  "payload": {
-    "token": "TOKEN"
-  }
-}
-```
-
-Full body example for later `POST /messages` usage:
-
-```json
-{
-  "text": null,
-  "attachments": [
-    {
-      "type": "audio",
-      "payload": {
-        "token": "TOKEN"
-      }
-    }
-  ]
-}
-```
-
-### Notes
-
-- `.env` is ignored by Git and must not be committed.
-- The script uploads only local files.
-- This script only uploads audio and prints the token. It does not send the message.
-- If MAX returns `attachment.not.ready` when sending the message, wait a few seconds and retry sending.
-
----
-
-## Русский
-
-### Что делает скрипт
-
-- Загружает один локальный аудиофайл в MAX Bot API через `POST /uploads?type=audio`.
-- Предназначен для локальных файлов `.mp3`, `.m4a` и `.wav`.
-- Выводит ответ с upload URL, сырой ответ загрузки, media token и готовый JSON для audio attachment.
-- Работает в Windows PowerShell 5.1.
-
-### Требования
+## Требования
 
 - Windows
 - PowerShell 5.1
 - `curl.exe`
 - Токен MAX-бота
-- Локальный аудиофайл
+- Локальный файл для загрузки
 
-### Настройка
+## Настройка
 
-1. Скачайте или клонируйте репозиторий.
-2. Скопируйте `.env.example` в `.env`.
+Скопируйте пример:
 
 ```bat
 copy .env.example .env
 ```
 
-3. Откройте `.env`.
-4. Укажите `MAX_BOT_TOKEN`.
-5. Укажите `AUDIO_FILE_PATH`.
-
-Пример `.env`:
+В `.env` обычно нужен только токен:
 
 ```env
 MAX_BOT_TOKEN=YOUR_MAX_BOT_TOKEN
-AUDIO_FILE_PATH=C:\temp\voice.mp3
+MAX_UPLOAD_TYPE=auto
 ```
 
-### Запуск
+Путь к файлу удобнее не хранить в `.env`: можно перетащить файл на `run.bat`, передать путь аргументом или вставить путь при запуске.
 
-Запустите:
+Если всё-таки нужен файл по умолчанию, можно добавить:
+
+```env
+MAX_FILE_PATH=C:\temp\voice.mp3
+```
+
+Старый параметр `AUDIO_FILE_PATH` ещё поддерживается, но лучше перейти на новый способ.
+
+## Запуск
+
+Запуск с вводом пути:
 
 ```bat
 run.bat
 ```
 
-### Успешная загрузка
+Можно перетащить файл на `run.bat`.
 
-Ответ загрузки от CDN может выглядеть так:
+Запуск с путём:
 
-```xml
-<retval>1</retval>
+```bat
+run.bat "C:\temp\picture.png"
 ```
 
-Это означает, что файл успешно загружен. Скрипт отправляет файл как `multipart/form-data`, имя поля формы: `data`.
+Запуск с явным типом:
 
-### Результат
+```bat
+run.bat "C:\temp\unknown.bin" file
+```
 
-Скрипт выводит media token и готовый JSON для audio attachment:
+Можно вызвать PowerShell-скрипт напрямую:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\upload-max-file.ps1 -FilePath "C:\temp\movie.mp4" -UploadType video
+```
+
+## Автоопределение типа
+
+При `MAX_UPLOAD_TYPE=auto` расширения сопоставляются так:
+
+- Изображения: `.jpg`, `.jpeg`, `.png`, `.gif`, `.tiff`, `.tif`, `.bmp`, `.heic`
+- Видео: `.mp4`, `.mov`, `.mkv`, `.webm`, `.matroska`
+- Аудио: `.mp3`, `.wav`, `.m4a`, `.aac`, `.ogg`, `.opus`, `.flac`
+- Всё остальное: `file`
+
+Поддерживаемые типы MAX: `image`, `video`, `audio`, `file`.
+
+## Результат
+
+Скрипт выводит готовый attachment JSON. Точная форма payload зависит от ответа MAX и типа файла.
 
 ```json
 {
-  "type": "audio",
+  "type": "file",
   "payload": {
+    "fileId": 123,
     "token": "TOKEN"
   }
 }
 ```
 
-Пример полного body для последующего `POST /messages`:
+И пример полного body для последующего `POST /messages`:
 
 ```json
 {
   "text": null,
   "attachments": [
     {
-      "type": "audio",
+      "type": "file",
       "payload": {
+        "fileId": 123,
         "token": "TOKEN"
       }
     }
@@ -179,9 +122,140 @@ run.bat
 }
 ```
 
-### Примечания
+Для `audio` и `video` MAX возвращает token при создании upload URL. Для `image` и `file` token берётся из ответа загрузки.
 
-- `.env` игнорируется Git и не должен попадать в коммит.
-- Скрипт загружает только локальные файлы.
-- Скрипт только загружает аудио и выводит токен. Он не отправляет сообщение.
-- Если при отправке сообщения MAX возвращает `attachment.not.ready`, подождите несколько секунд и повторите отправку.
+Реальные тесты API подтвердили `file`, `image`, `audio` с MP3 и `video` с MP4. Для WAV во время тестирования MAX вернул `415 Unsupported Media Type`; если это повторится, конвертируйте аудио в MP3 и попробуйте снова.
+
+Если MAX возвращает `attachment.not.ready` при отправке сообщения, подождите несколько секунд и повторите отправку.
+
+---
+
+# MAX File Uploader: English
+
+Minimal Windows PowerShell 5.1 utility for uploading one local file to MAX Bot API.
+
+The script supports all current MAX upload types:
+
+- `image`
+- `video`
+- `audio`
+- `file`
+
+`photo` is not supported by MAX anymore. Use `image`.
+
+## What It Does
+
+- Requests an upload URL from `POST /uploads?type=...`.
+- Uploads one local file as `multipart/form-data` with the field name `data`.
+- Detects the upload type automatically from the file extension by default.
+- Sends a matching MIME type for known extensions.
+- Prints the upload URL response, raw upload response, ready attachment JSON, and example body for `POST /messages`.
+
+## Requirements
+
+- Windows
+- PowerShell 5.1
+- `curl.exe`
+- MAX bot token
+- Local file to upload
+
+## Setup
+
+Copy the example environment file:
+
+```bat
+copy .env.example .env
+```
+
+Open `.env` and set your bot token:
+
+```env
+MAX_BOT_TOKEN=YOUR_MAX_BOT_TOKEN
+MAX_UPLOAD_TYPE=auto
+```
+
+Usually the file path should not live in `.env`. Pass it at launch, drag a file onto `run.bat`, or paste the path when prompted.
+
+Optional fallback:
+
+```env
+MAX_FILE_PATH=C:\temp\voice.mp3
+```
+
+The old `AUDIO_FILE_PATH` setting is still accepted for compatibility, but `MAX_FILE_PATH` is preferred if you really want a default file in `.env`.
+
+## Usage
+
+Run and paste the file path when prompted:
+
+```bat
+run.bat
+```
+
+Or drag-and-drop a file onto `run.bat`.
+
+Or pass the file path directly:
+
+```bat
+run.bat "C:\temp\picture.png"
+```
+
+Force a type if auto-detection is not what you want:
+
+```bat
+run.bat "C:\temp\unknown.bin" file
+```
+
+You can also call the PowerShell script directly:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\upload-max-file.ps1 -FilePath "C:\temp\movie.mp4" -UploadType video
+```
+
+## Auto Type Detection
+
+With `MAX_UPLOAD_TYPE=auto`, the script maps extensions like this:
+
+- Images: `.jpg`, `.jpeg`, `.png`, `.gif`, `.tiff`, `.tif`, `.bmp`, `.heic`
+- Videos: `.mp4`, `.mov`, `.mkv`, `.webm`, `.matroska`
+- Audio: `.mp3`, `.wav`, `.m4a`, `.aac`, `.ogg`, `.opus`, `.flac`
+- Anything else: `file`
+
+Supported MAX upload types are `image`, `video`, `audio`, and `file`.
+
+## Result
+
+The script prints a ready attachment JSON. Exact payload shape depends on MAX response and file type.
+
+```json
+{
+  "type": "file",
+  "payload": {
+    "fileId": 123,
+    "token": "TOKEN"
+  }
+}
+```
+
+And a full body example for later `POST /messages` usage:
+
+```json
+{
+  "text": null,
+  "attachments": [
+    {
+      "type": "file",
+      "payload": {
+        "fileId": 123,
+        "token": "TOKEN"
+      }
+    }
+  ]
+}
+```
+
+For `audio` and `video`, MAX returns the token when the upload URL is created. For `image` and `file`, the token is taken from the upload response.
+
+Real API testing confirmed `file`, `image`, `audio` with MP3, and `video` with MP4. MAX returned `415 Unsupported Media Type` for WAV during testing; if that happens, convert the audio to MP3 and retry.
+
+If MAX returns `attachment.not.ready` when sending the message, wait a few seconds and retry sending.
